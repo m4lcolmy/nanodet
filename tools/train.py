@@ -97,11 +97,15 @@ def main(args):
 
     if "load_model" in cfg.schedule:
         ckpt = torch.load(cfg.schedule.load_model)
-        if "pytorch-lightning_version" not in ckpt:
-            warnings.warn(
-                "Warning! Old .pth checkpoint is deprecated. "
-                "Convert the checkpoint with tools/convert_old_checkpoint.py "
-            )
+
+        # Check if the loaded file is just raw weights (no 'state_dict' key)
+        if "state_dict" not in ckpt:
+            print("INFO: Loaded file is a pure weight file. wrapping in state_dict.")
+            ckpt = {"state_dict": ckpt}
+
+        # Only try to convert if it's actually an old CHECKPOINT (has epoch data)
+        elif "pytorch-lightning_version" not in ckpt and "epoch" in ckpt:
+            warnings.warn("Warning! Old .pth checkpoint is deprecated...")
             ckpt = convert_old_model(ckpt)
         load_model_weight(task.model, ckpt, logger)
         logger.info("Loaded model weight from {}".format(cfg.schedule.load_model))
